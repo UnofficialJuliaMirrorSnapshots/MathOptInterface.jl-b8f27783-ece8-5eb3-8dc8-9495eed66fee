@@ -1,0 +1,95 @@
+@testset "Mock optimizer default objective sense" begin
+    MOIT.default_objective_test(MOIU.MockOptimizer(ModelForMock{Float64}()))
+end
+
+@testset "Default statuses" begin
+    model = MOIU.MockOptimizer(ModelForMock{Float64}())
+    MOIT.default_status_test(model)
+    MOI.empty!(model)
+    MOIT.default_status_test(model)
+end
+
+@testset "Mock optimizer name test" begin
+    MOIT.nametest(MOIU.MockOptimizer(ModelForMock{Float64}()))
+end
+
+@testset "Mock optimizer optimizer attributes" begin
+    optimizer = MOIU.MockOptimizer(ModelForMock{Float64}())
+    @test MOI.supports(optimizer, MOIU.MockModelAttribute())
+    MOI.set(optimizer, MOIU.MockModelAttribute(), 10)
+    @test MOI.get(optimizer, MOIU.MockModelAttribute()) == 10
+
+    v1 = MOI.add_variable(optimizer)
+    @test MOI.supports(optimizer, MOIU.MockVariableAttribute(), typeof(v1))
+    MOI.set(optimizer, MOIU.MockVariableAttribute(), v1, 11)
+    @test MOI.get(optimizer, MOIU.MockVariableAttribute(), v1) == 11
+    MOI.set(optimizer, MOIU.MockVariableAttribute(), [v1], [-11])
+    @test MOI.get(optimizer, MOIU.MockVariableAttribute(), [v1]) == [-11]
+
+    @test MOI.supports_constraint(optimizer, MOI.SingleVariable, MOI.GreaterThan{Float64})
+    c1 = MOI.add_constraint(optimizer, MOI.SingleVariable(v1), MOI.GreaterThan(1.0))
+    @test MOI.supports(optimizer, MOIU.MockConstraintAttribute(), typeof(c1))
+    MOI.set(optimizer, MOIU.MockConstraintAttribute(), c1, 12)
+    @test MOI.get(optimizer, MOIU.MockConstraintAttribute(), c1) == 12
+    MOI.set(optimizer, MOIU.MockConstraintAttribute(), [c1], [-12])
+    @test MOI.get(optimizer, MOIU.MockConstraintAttribute(), [c1]) == [-12]
+end
+
+@testset "Mock optimizer optimizer solve no result" begin
+    optimizer = MOIU.MockOptimizer(ModelForMock{Float64}())
+
+    v1 = MOI.add_variable(optimizer)
+
+    # Load fake solution
+    MOI.set(optimizer, MOI.TerminationStatus(), MOI.INFEASIBLE)
+
+    MOI.optimize!(optimizer)
+    @test MOI.get(optimizer, MOI.TerminationStatus()) == MOI.INFEASIBLE
+    @test MOI.get(optimizer, MOI.ResultCount()) == 0
+end
+
+@testset "Mock optimizer optimizer solve with result" begin
+    optimizer = MOIU.MockOptimizer(ModelForMock{Float64}(),
+                                   eval_objective_value=false,
+                                   eval_variable_constraint_dual=false)
+
+    v = MOI.add_variables(optimizer, 2)
+    c1 = MOI.add_constraint(optimizer, MOI.SingleVariable(v[1]), MOI.GreaterThan(1.0))
+    soc = MOI.add_constraint(optimizer, MOI.VectorOfVariables(v), MOI.SecondOrderCone(2))
+
+    err = ErrorException("No mock primal is set for variable `$(v[1])`.")
+    if VERSION < v"0.7-"
+        @test_throws ErrorException MOI.get(optimizer, MOI.VariablePrimal(), v[1])
+    else
+        @test_throws err MOI.get(optimizer, MOI.VariablePrimal(), v[1])
+    end
+    err = ErrorException("No mock dual is set for constraint `$c1`.")
+    if VERSION < v"0.7-"
+        @test_throws ErrorException MOI.get(optimizer, MOI.ConstraintDual(), c1)
+    else
+        @test_throws err MOI.get(optimizer, MOI.ConstraintDual(), c1)
+    end
+
+    # Load fake solution
+    # TODO: Provide a more compact API for this.
+    MOI.set(optimizer, MOI.TerminationStatus(), MOI.OPTIMAL)
+    MOI.set(optimizer, MOI.ObjectiveValue(), 1.0)
+    MOI.set(optimizer, MOI.ResultCount(), 1)
+    MOI.set(optimizer, MOI.PrimalStatus(), MOI.FEASIBLE_POINT)
+    MOI.set(optimizer, MOI.DualStatus(), MOI.FEASIBLE_POINT)
+    MOI.set(optimizer, MOI.VariablePrimal(), v, [1.0, 2.0])
+    MOI.set(optimizer, MOI.VariablePrimal(), v[1], 3.0)
+    MOI.set(optimizer, MOI.ConstraintDual(), c1, 5.9)
+    MOI.set(optimizer, MOI.ConstraintDual(), soc, [1.0,2.0])
+
+    MOI.optimize!(optimizer)
+    @test MOI.get(optimizer, MOI.TerminationStatus()) == MOI.OPTIMAL
+    @test MOI.get(optimizer, MOI.ResultCount()) == 1
+    @test MOI.get(optimizer, MOI.ObjectiveValue()) == 1.0
+    @test MOI.get(optimizer, MOI.PrimalStatus()) == MOI.FEASIBLE_POINT
+    @test MOI.get(optimizer, MOI.DualStatus()) == MOI.FEASIBLE_POINT
+    @test MOI.get(optimizer, MOI.VariablePrimal(), v) == [3.0, 2.0]
+    @test MOI.get(optimizer, MOI.VariablePrimal(), v[1]) == 3.0
+    @test MOI.get(optimizer, MOI.ConstraintDual(), c1) == 5.9
+    @test MOI.get(optimizer, MOI.ConstraintDual(), soc) == [1.0,2.0]
+end
