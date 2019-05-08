@@ -449,7 +449,7 @@ end
 @testset "Conversion to canonical form" begin
     function isapprox_ordered(f1::T, f2::T) where {T <: Union{MOI.ScalarAffineFunction, MOI.VectorAffineFunction}}
         ((MOI.term_indices.(f1.terms) == MOI.term_indices.(f2.terms)) &&
-         (MOI._constant(f1) ≈ MOI._constant(f2)) &&
+         (MOI.constant(f1) ≈ MOI.constant(f2)) &&
          (MOI.coefficient.(f1.terms) ≈ MOI.coefficient.(f2.terms)))
     end
     function test_canonicalization(f::T, expected::T) where {T <: Union{MOI.ScalarAffineFunction, MOI.VectorAffineFunction}}
@@ -579,7 +579,7 @@ end
         @test MOIU.operate_term(*, 3.0, at) ==
             MOI.VectorAffineTerm(3, MOI.ScalarAffineTerm(30.0, x))
         @test MOIU.operate_term(*, at, at) ==
-            MOI.VectorQuadraticTerm(3, MOI.ScalarQuadraticTerm(100.0, x, x))
+            MOI.VectorQuadraticTerm(3, MOI.ScalarQuadraticTerm(200.0, x, x))
         @test MOIU.operate_term(*, 3.0, qt) ==
             MOI.VectorQuadraticTerm(3, MOI.ScalarQuadraticTerm(18.0, x, y))
         @test MOIU.operate_term(/, at, 2.0) ==

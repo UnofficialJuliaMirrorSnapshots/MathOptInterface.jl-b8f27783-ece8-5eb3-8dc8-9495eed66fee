@@ -100,6 +100,7 @@ ResultCount
 ObjectiveFunction
 ObjectiveFunctionType
 ObjectiveValue
+DualObjectiveValue
 ObjectiveBound
 RelativeGap
 SolveTime
@@ -212,10 +213,14 @@ VectorQuadraticTerm
 VectorQuadraticFunction
 ```
 
-Functions for getting and setting properties of sets.
+Functions for getting and setting properties of functions.
 
 ```@docs
 output_dimension
+constant(f::Union{ScalarAffineFunction, ScalarQuadraticFunction})
+constant(f::Union{VectorAffineFunction, VectorQuadraticFunction})
+constant(f::SingleVariable, ::DataType)
+constant(f::VectorOfVariables, T::DataType)
 ```
 
 ## Sets
@@ -258,6 +263,7 @@ Functions for getting and setting properties of sets.
 
 ```@docs
 dimension
+constant(s::EqualTo)
 ```
 
 ## Modifications

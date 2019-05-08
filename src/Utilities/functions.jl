@@ -64,12 +64,12 @@ function mapvariables(varmap::Function, f::MOI.VectorOfVariables)
     return MOI.VectorOfVariables(varmap.(f.variables))
 end
 function mapvariables(varmap::Function, f::Union{SAF, VAF})
-    typeof(f)(mapvariable.(varmap, f.terms), MOI._constant(f))
+    typeof(f)(mapvariable.(varmap, f.terms), MOI.constant(f))
 end
 function mapvariables(varmap::Function, f::Union{SQF, VQF})
     lin = mapvariable.(varmap, f.affine_terms)
     quad = mapvariable.(varmap, f.quadratic_terms)
-    return typeof(f)(lin, quad, MOI._constant(f))
+    return typeof(f)(lin, quad, MOI.constant(f))
 end
 mapvariables(varmap, f::MOI.AbstractFunction) = mapvariables(vi -> varmap[vi], f)
 mapvariables(varmap::Function, change::Union{MOI.ScalarConstantChange, MOI.VectorConstantChange}) = change
@@ -461,11 +461,11 @@ function removevariable(f::VVF, vi)
     VVF(_rmvar(f.variables, vi))
 end
 function removevariable(f::Union{SAF, VAF}, vi)
-    typeof(f)(_rmvar(f.terms, vi), MOI._constant(f))
+    typeof(f)(_rmvar(f.terms, vi), MOI.constant(f))
 end
 function removevariable(f::Union{SQF, VQF}, vi)
     terms = _rmvar.((f.affine_terms, f.quadratic_terms), Ref(vi))
-    typeof(f)(terms..., MOI._constant(f))
+    typeof(f)(terms..., MOI.constant(f))
 end
 
 """
@@ -618,8 +618,11 @@ function operate_term(::typeof(*), α::T, t::MOI.ScalarQuadraticTerm{T}) where T
 end
 function operate_term(::typeof(*), t1::MOI.ScalarAffineTerm,
                       t2::MOI.ScalarAffineTerm)
-    MOI.ScalarQuadraticTerm(t1.coefficient * t2.coefficient, t1.variable_index,
-                            t2.variable_index)
+    coef = t1.coefficient * t2.coefficient
+    if t1.variable_index == t2.variable_index
+        coef *= 2
+    end
+    MOI.ScalarQuadraticTerm(coef, t1.variable_index, t2.variable_index)
 end
 
 function operate_term(::typeof(*), α::T, t::MOI.VectorAffineTerm{T}) where T
@@ -659,6 +662,11 @@ function operate_terms(::typeof(+),
                               MOI.VectorQuadraticTerm}})
     return terms
 end
+function operate_terms!(::typeof(-),
+                        terms::Vector{<:Union{MOI.ScalarAffineTerm,
+                                              MOI.ScalarQuadraticTerm}})
+    return map!(term -> operate_term(-, term), terms, terms)
+end
 function operate_terms(::typeof(-),
                        terms::Vector{<:Union{MOI.ScalarAffineTerm,
                                              MOI.ScalarQuadraticTerm}})
@@ -666,7 +674,7 @@ function operate_terms(::typeof(-),
 end
 function operate_terms(::typeof(-),
         terms::Vector{<:Union{MOI.VectorAffineTerm,
-                            MOI.VectorQuadraticTerm}})
+                              MOI.VectorQuadraticTerm}})
     return map(term -> operate_term(-, term), terms)
 end
 
@@ -726,6 +734,15 @@ function operate!(op::typeof(+), ::Type{T}, f, g, h, args...) where T
     operate!(op, T, f, g)
     return operate!(+, T, f, h, args...)
 end
+
+# Unary -
+function operate!(op::typeof(-), ::Type{T}, f::MOI.ScalarQuadraticFunction{T}) where T
+    operate_terms!(-, f.quadratic_terms)
+    operate_terms!(-, f.affine_terms)
+    f.constant = -f.constant
+    return f
+end
+
 
 # Scalar Variable +/- ...
 function operate!(op::Union{typeof(+), typeof(-)}, ::Type{T},
@@ -1399,7 +1416,7 @@ function scalarize(f::MOI.VectorOfVariables, ignore_constants::Bool = false)
 end
 function scalarize(f::MOI.VectorAffineFunction{T}, ignore_constants::Bool = false) where T
     dimension = MOI.output_dimension(f)
-    constants = ignore_constants ? zeros(T, dimension) : MOI._constant(f)
+    constants = ignore_constants ? zeros(T, dimension) : MOI.constant(f)
     counting = count_terms(dimension, f.terms)
     functions = MOI.ScalarAffineFunction{T}[
         MOI.ScalarAffineFunction{T}(MOI.ScalarAffineTerm{T}[], constants[i]) for i in 1:dimension]
@@ -1413,7 +1430,7 @@ function scalarize(f::MOI.VectorAffineFunction{T}, ignore_constants::Bool = fals
 end
 function scalarize(f::MOI.VectorQuadraticFunction{T}, ignore_constants::Bool = false) where T
     dimension = MOI.output_dimension(f)
-    constants = ignore_constants ? zeros(T, dimension) : MOI._constant(f)
+    constants = ignore_constants ? zeros(T, dimension) : MOI.constant(f)
     counting_scalars = count_terms(dimension, f.affine_terms)
     counting_quadratics = count_terms(dimension, f.quadratic_terms)
     functions = MOI.ScalarQuadraticFunction{T}[
