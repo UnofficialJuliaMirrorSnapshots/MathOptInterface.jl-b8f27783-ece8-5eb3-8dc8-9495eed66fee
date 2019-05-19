@@ -89,6 +89,7 @@ List of optimizers attributes
 ```@docs
 SolverName
 Silent
+RawParameter
 ```
 
 List of attributes useful for optimizers
@@ -149,6 +150,7 @@ BasisStatusCode
 VariableIndex
 ConstraintIndex
 is_valid
+throw_if_not_valid
 delete(::ModelLike, ::Index)
 ```
 
@@ -194,6 +196,12 @@ ConstraintDual
 ConstraintBasisStatus
 ConstraintFunction
 ConstraintSet
+```
+
+Note that setting the [`ConstraintFunction`](@ref) of a [`SingleVariable`]
+constraint is not allowed:
+```@docs
+SettingSingleVariableFunctionNotAllowed
 ```
 
 ## Functions and function modifications
@@ -369,6 +377,13 @@ function constant, a [`ScalarFunctionConstantNotZero`](@ref) exception may be
 thrown:
 ```@docs
 ScalarFunctionConstantNotZero
+```
+
+Some [`SingleVariable`](@ref) constraints cannot be combined on the same
+variable:
+```@docs
+LowerBoundAlreadySet
+UpperBoundAlreadySet
 ```
 
 The rest of the errors defined in MOI fall in two categories represented by the
