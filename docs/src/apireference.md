@@ -311,8 +311,6 @@ RootDetConeTriangle
 RootDetConeSquare
 ```
 
-## Sets
-
 ## Modifications
 
 Functions for modifying objective and constraint functions.
@@ -404,6 +402,24 @@ AddConstraintNotAllowed
 ModifyConstraintNotAllowed
 ModifyObjectiveNotAllowed
 DeleteNotAllowed
+```
+
+## Models
+
+MOI is designed to be extensible, so there is no fixed list of possible
+functions and sets. This makes it challenging to define efficient storage
+representations for MOI models. For cases where the functions and sets of
+interest are known in advance (for example, solvers support a fixed list of
+functions and sets), we provide the [`Utilities.@model`](@ref) that macro
+defines a [`ModelLike`](@ref) given a list of functions and sets to support.
+
+[`Utilities.UniversalFallback`](@ref) is a layer that sits on top of any
+`ModelLike` and provides non-specialized (slower) fallbacks for constraints and
+attributes that the underlying `ModeLike` does not support.
+
+```@docs
+Utilities.@model
+Utilities.UniversalFallback
 ```
 
 ## Bridges
