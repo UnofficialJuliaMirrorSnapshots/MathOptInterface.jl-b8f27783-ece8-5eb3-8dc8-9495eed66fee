@@ -901,17 +901,18 @@ function operate(op::Union{typeof(+), typeof(-)}, ::Type{T},
     operate!(op, T, copy(f), g)
 end
 
-function Base.:+(args::ScalarLike{T}...) where T
-    return operate(+, T, args...)
+# To avoid type piracy, we add at least one `ScalarLike` outside of the `...`.
+function Base.:+(arg::ScalarLike{T}, args::ScalarLike{T}...) where T
+    return operate(+, T, arg, args...)
 end
-function Base.:+(α::T, f::ScalarLike{T}...) where T
-    return operate(+, T, α, f...)
+function Base.:+(α::T, arg::ScalarLike{T}, args::ScalarLike{T}...) where T
+    return operate(+, T, α, arg, args...)
 end
 function Base.:+(f::ScalarLike{T}, α::T) where T
     return operate(+, T, f, α)
 end
-function Base.:-(args::ScalarLike{T}...) where T
-    return operate(-, T, args...)
+function Base.:-(arg::ScalarLike{T}, args::ScalarLike{T}...) where T
+    return operate(-, T, arg, args...)
 end
 function Base.:-(f::ScalarLike{T}, α::T) where T
     return operate(-, T, f, α)
@@ -1332,6 +1333,30 @@ function fill_vector(vector::Vector, ::Type{T}, vector_offset::Int,
     fill_vector(vector, T, vector_offset + dim_func(T, func),
                 output_offset + output_dim(T, func), fill_func, dim_func,
                 funcs...)
+end
+
+function fill_variables(variables::Vector{MOI.VariableIndex}, offset::Int,
+                        output_offset::Int, func::MOI.SingleVariable)
+    variables[offset + 1] = func.variable
+end
+
+function fill_variables(variables::Vector{MOI.VariableIndex}, offset::Int,
+                        output_offset::Int, func::MOI.VectorOfVariables)
+    variables[offset .+ (1:length(func.variables))] .= func.variables
+end
+
+function promote_operation(::typeof(vcat), ::Type{T},
+                           ::Type{<:Union{MOI.SingleVariable,
+                                          MOI.VectorOfVariables}}...) where T
+    return MOI.VectorOfVariables
+end
+function operate(::typeof(vcat), ::Type{T},
+                 funcs::Union{MOI.SingleVariable,
+                              MOI.VectorOfVariables}...) where T
+    out_dim = sum(func -> output_dim(T, func), funcs)
+    variables = Vector{MOI.VariableIndex}(undef, out_dim)
+    fill_vector(variables, T, 0, 0, fill_variables, output_dim, funcs...)
+    return MOI.VectorOfVariables(variables)
 end
 
 number_of_affine_terms(::Type{T}, ::T) where T = 0
