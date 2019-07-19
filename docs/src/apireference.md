@@ -44,6 +44,23 @@ set
 supports
 ```
 
+### Fallbacks
+
+The value of some attributes can be inferred from the value of other
+attributes. For instance, the value of [`ObjectiveValue`](@ref) can be computed
+using [`ObjectiveFunction`](@ref) and [`VariablePrimal`](@ref). When a solver
+gives access to the objective value, it is better to return this value but
+otherwise, [`Utilities.get_fallback`](@ref) can be used.
+```julia
+function MOI.get(optimizer::Optimizer, attr::MOI.ObjectiveValue)
+    return MOI.Utilities.get_fallback(optimizer, attr)
+end
+```
+
+```@docs
+Utilities.get_fallback
+```
+
 ### Submit
 
 Objects may be submitted to an optimizer using [`submit`](@ref).
@@ -254,6 +271,8 @@ Functions for getting properties of sets.
 ```@docs
 dimension
 constant(s::EqualTo)
+supports_dimension_update
+update_dimension
 ```
 
 ### Scalar sets
@@ -610,6 +629,41 @@ Utilities.reset_optimizer
 Utilities.drop_optimizer
 Utilities.state
 Utilities.mode
+```
+
+## Function utilities
+
+The following utilities are available for functions:
+```@docs
+Utilities.eval_variables
+Utilities.remove_variable
+Utilities.all_coefficients
+Utilities.unsafe_add
+Utilities.isapprox_zero
+Utilities.modify_function
+```
+
+The following functions can be used to canonicalize a function:
+```@docs
+Utilities.is_canonical
+Utilities.canonical
+Utilities.canonicalize!
+```
+
+The following functions can be used to manipulate functions with basic algebra:
+```@docs
+Utilities.scalar_type
+Utilities.promote_operation
+Utilities.operate
+Utilities.operate!
+Utilities.vectorize
+```
+
+## Set utilities
+
+The following utilities are available for sets:
+```@docs
+Utilities.shift_constant
 ```
 
 ## Benchmarks
