@@ -8,10 +8,28 @@ is, `copy_to(model, src)` does not throw [`UnsupportedConstraint`](@ref) when
 `src` contains `F`-in-`S` constraints. If `F`-in-`S` constraints are only not
 supported in specific circumstances, e.g. `F`-in-`S` constraints cannot be
 combined with another type of constraint, it should still return `true`.
-"""
+
+    supports_constraint(model::ModelLike, ::Type{VectorOfVariables}, ::Type{Reals})::Bool
+
+Return a `Bool` indicating whether `model` supports free variables. That is,
+`copy_to(model, src)` does not error when `src` contains variables that are not
+constrained by any [`SingleVariable`](@ref) or [`VectorOfVariables`](@ref)
+constraint. By default, this method returns `true` so it should only be
+implemented if `model` does not support free variables. For instance, if a
+solver requires all variables to be nonnegative, it should implement this
+method and return `false` because free variables cannot be copied to the solver.
+
+Note that free variables are not explicitly set to be free by calling
+[`add_constraint`](@ref) with the set [`Reals`](@ref), instead, free variables
+are created with [`add_variable`](@ref) and [`add_variables`](@ref).
+If `model` does not support free variables, it should not implement
+[`add_variable`](@ref) nor [`add_variables`](@ref) but should implement
+this method and return `false`. This allows free variables to be bridged as the
+sum of a nonnegative and a nonpositive variables.
+""" # Implemented as only one method to avoid ambiguity
 function supports_constraint(model::ModelLike, F::Type{<:AbstractFunction},
                              S::Type{<:AbstractSet})
-    return false
+    return F == VectorOfVariables && S == Reals
 end
 
 """
@@ -60,7 +78,7 @@ function Base.showerror(io::IO,
                     err::ScalarFunctionConstantNotZero{T, F, S}) where {T, F, S}
     print(io, "In `$F`-in-`$S` constraint: Constant $(err.constant) of the ",
           "function is not zero. The function constant should be moved to the ",
-          "set. You can use `MOI.Utilities.add_scalar_constraint` which does ",
+          "set. You can use `MOI.Utilities.normalize_and_add_constraint` which does ",
           "this automatically.")
 end
 
