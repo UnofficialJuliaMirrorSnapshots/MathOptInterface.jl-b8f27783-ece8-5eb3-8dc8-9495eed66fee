@@ -19,7 +19,8 @@ end
 MOI.supports_constraint(::Type{ScalarFunctionizeBridge{T}},
                         ::Type{<:MOI.SingleVariable},
                         ::Type{<:MOI.AbstractScalarSet}) where {T} = true
-function added_constraint_types(::Type{ScalarFunctionizeBridge{T, S}}) where {T, S}
+MOIB.added_constrained_variable_types(::Type{<:ScalarFunctionizeBridge}) = Tuple{DataType}[]
+function MOIB.added_constraint_types(::Type{ScalarFunctionizeBridge{T, S}}) where {T, S}
     return [(MOI.ScalarAffineFunction{T}, S)]
 end
 function concrete_bridge_type(::Type{<:ScalarFunctionizeBridge{T}},
@@ -91,7 +92,8 @@ end
 MOI.supports_constraint(::Type{VectorFunctionizeBridge{T}},
                         ::Type{MOI.VectorOfVariables},
                         ::Type{<:MOI.AbstractVectorSet}) where {T} = true
-function added_constraint_types(::Type{VectorFunctionizeBridge{T, S}}) where {T, S}
+MOIB.added_constrained_variable_types(::Type{<:VectorFunctionizeBridge}) = Tuple{DataType}[]
+function MOIB.added_constraint_types(::Type{VectorFunctionizeBridge{T, S}}) where {T, S}
     return [(MOI.VectorAffineFunction{T}, S)]
 end
 function concrete_bridge_type(::Type{<:VectorFunctionizeBridge{T}},

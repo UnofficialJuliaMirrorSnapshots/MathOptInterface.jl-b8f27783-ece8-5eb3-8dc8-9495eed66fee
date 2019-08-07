@@ -1,5 +1,10 @@
 ```@meta
 CurrentModule = MathOptInterface
+DocTestSetup = quote
+    using MathOptInterface
+    const MOI = MathOptInterface
+end
+DocTestFilters = [r"MathOptInterface|MOI"]
 ```
 
 # API Reference
@@ -288,6 +293,7 @@ AbstractVectorSet
 Functions for getting properties of sets.
 ```@docs
 dimension
+dual_set
 constant(s::EqualTo)
 supports_dimension_update
 update_dimension
@@ -476,6 +482,7 @@ Utilities.@model
 
 Bridges can be used for automatic reformulation of a certain constraint type into equivalent constraints.
 ```@docs
+Bridges.AbstractBridge
 Bridges.Constraint.AbstractBridge
 Bridges.AbstractBridgeOptimizer
 Bridges.Constraint.SingleBridgeOptimizer
@@ -519,7 +526,7 @@ A bridge should implement the following functions to be usable by a bridge optim
 supports_constraint(::Type{<:Bridges.Constraint.AbstractBridge}, ::Type{<:AbstractFunction}, ::Type{<:AbstractSet})
 Bridges.Constraint.concrete_bridge_type
 Bridges.Constraint.bridge_constraint
-Bridges.Constraint.added_constraint_types
+Bridges.added_constraint_types
 ```
 
 When querying the [`NumberOfVariables`](@ref), [`NumberOfConstraints`](@ref)
@@ -654,6 +661,7 @@ Utilities.mode
 The following utilities are available for functions:
 ```@docs
 Utilities.eval_variables
+Utilities.substitute_variables
 Utilities.remove_variable
 Utilities.all_coefficients
 Utilities.unsafe_add
@@ -674,6 +682,7 @@ Utilities.scalar_type
 Utilities.promote_operation
 Utilities.operate
 Utilities.operate!
+Utilities.operate_output_index!
 Utilities.vectorize
 ```
 
