@@ -159,6 +159,7 @@ MOIU.@model(NoRSOCModel,
             (),
             (MOI.EqualTo, MOI.GreaterThan, MOI.LessThan),
             (MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives, MOI.SecondOrderCone,
+             MOI.NormInfinityCone, MOI.NormOneCone,
              MOI.ExponentialCone, MOI.PositiveSemidefiniteConeTriangle),
             (MOI.PowerCone,),
             (),
@@ -202,6 +203,7 @@ MOIU.@model(ModelNoVAFinSOC,
             (),
             (MOI.EqualTo, MOI.GreaterThan, MOI.LessThan, MOI.Interval),
             (MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives, MOI.SecondOrderCone,
+             MOI.NormInfinityCone, MOI.NormOneCone,
              MOI.RotatedSecondOrderCone, MOI.GeometricMeanCone,
              MOI.PositiveSemidefiniteConeTriangle, MOI.ExponentialCone),
             (MOI.PowerCone, MOI.DualPowerCone),
@@ -243,6 +245,7 @@ MOIU.@model(ModelNoZeroIndicator,
             (MOI.EqualTo, MOI.GreaterThan, MOI.LessThan, MOI.Interval,
              MOI.Semicontinuous, MOI.Semiinteger),
             (MOI.Reals, MOI.Zeros, MOI.Nonnegatives, MOI.Nonpositives,
+             MOI.NormInfinityCone, MOI.NormOneCone,
              MOI.SecondOrderCone, MOI.RotatedSecondOrderCone,
              MOI.GeometricMeanCone, MOI.ExponentialCone, MOI.DualExponentialCone,
              MOI.PositiveSemidefiniteConeTriangle, MOI.PositiveSemidefiniteConeSquare,
@@ -319,8 +322,10 @@ end
     end
     c = MOI.add_constraint(bridged_mock, MOI.VectorOfVariables(x),
                            MOI.RotatedSecondOrderCone(3))
-    @test MOIB.bridge_type(bridged_mock, MOI.VectorOfVariables,
-                MOI.RotatedSecondOrderCone) == MOIB.Constraint.RSOCtoPSDBridge{Float64, MOI.VectorOfVariables}
+    @test MOIB.bridge_type(
+        bridged_mock, MOI.VectorOfVariables,
+        MOI.RotatedSecondOrderCone) == MOIB.Constraint.RSOCtoPSDBridge{
+            Float64, MOI.VectorAffineFunction{Float64}, MOI.VectorOfVariables}
     @test MOIB.bridge(bridged_mock, c) isa MOIB.Constraint.RSOCtoPSDBridge
     @test bridged_mock.constraint_dist[(MOI.VectorOfVariables,
                                         MOI.RotatedSecondOrderCone)] == 1
