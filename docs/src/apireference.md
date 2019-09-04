@@ -322,6 +322,8 @@ Reals
 Zeros
 Nonnegatives
 Nonpositives
+NormInfinityCone
+NormOneCone
 SecondOrderCone
 RotatedSecondOrderCone
 GeometricMeanCone
@@ -707,6 +709,7 @@ Bridges.Constraint.ScalarFunctionizeBridge
 Bridges.Constraint.VectorFunctionizeBridge
 Bridges.Constraint.SplitIntervalBridge
 Bridges.Constraint.RSOCBridge
+Bridges.Constraint.SOCRBridge
 Bridges.Constraint.QuadtoSOCBridge
 Bridges.Constraint.GeoMeanBridge
 Bridges.Constraint.SquareBridge
