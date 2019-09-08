@@ -37,6 +37,65 @@ MOI.supports(::SDPAModel, ::MOI.ObjectiveFunction{MOI.SingleVariable}) = false
     bridged = MOIB.full_bridge_optimizer(model, Float64)
     MOIT.nametest(bridged)
 end
+
+@testset "Show SPDA model" begin
+    model = SDPAModel{Float64}()
+    bridged = MOIB.full_bridge_optimizer(model, Float64)
+    # no bridges
+    @test sprint(show, bridged) === raw"""
+    MOIB.LazyBridgeOptimizer{SDPAModel{Float64}}
+    with 0 variable bridges
+    with 0 constraint bridges
+    with 0 objective bridges
+    with inner model SDPAModel{Float64}"""
+
+    MOI.add_constrained_variable(bridged, MOI.LessThan(1.0))
+    # add variable bridges
+    @test sprint(show, bridged) == raw"""
+    MOIB.LazyBridgeOptimizer{SDPAModel{Float64}}
+    with 2 variable bridges
+    with 0 constraint bridges
+    with 0 objective bridges
+    with inner model SDPAModel{Float64}"""
+end
+
+@testset "Bridged variable in `SingleVariable` objective function with $T" for T in [Float64, Int]
+    @testset "No objective bridge" begin
+        model = SDPAModel{T}()
+        bridged = MOIB.Variable.Vectorize{T}(model)
+        x, cx = MOI.add_constrained_variable(bridged, MOI.GreaterThan(one(T)))
+        fx = MOI.SingleVariable(x)
+        err = ErrorException("Need to apply a `MOI.Bridges.Objective.FunctionizeBridge` to a" *
+            " `SingleVariable` objective function because the variable is" *
+            " bridged but objective bridges are not supported by" *
+            " `MathOptInterface.Bridges.Variable.SingleBridgeOptimizer{MathOptInterface.Bridges.Variable.VectorizeBridge{$T,S} where S,SDPAModel{$T}}`.")
+        @test_throws err MOI.set(bridged, MOI.ObjectiveFunction{typeof(fx)}(), fx)
+    end
+    @testset "LazyBridgeOptimizer" begin
+        model = SDPAModel{T}()
+        bridged = MOIB.LazyBridgeOptimizer(model)
+        MOIB.add_bridge(bridged, MOIB.Variable.VectorizeBridge{T})
+        x, cx = MOI.add_constrained_variable(bridged, MOI.GreaterThan(one(T)))
+        fx = MOI.SingleVariable(x)
+        @testset "without `Objective.FunctionizeBridge`" begin
+            err = ErrorException("Need to apply a `MOI.Bridges.Objective.FunctionizeBridge`" *
+                " to a `SingleVariable` objective function because the" *
+                " variable is bridged but no such objective bridge type was" *
+                " added. Add one with `add_bridge`.")
+            @test_throws err MOI.set(bridged, MOI.ObjectiveFunction{typeof(fx)}(), fx)
+        end
+        @testset "with `Objective.FunctionizeBridge`" begin
+            MOIB.add_bridge(bridged, MOIB.Objective.FunctionizeBridge{T})
+            MOI.set(bridged, MOI.ObjectiveFunction{typeof(fx)}(), fx)
+            @test MOI.get(bridged, MOI.ObjectiveFunctionType()) == MOI.SingleVariable
+            a = MOI.get(model, MOI.ListOfVariableIndices())[1]
+            fa = MOI.SingleVariable(a)
+            @test MOI.get(model, MOI.ObjectiveFunctionType()) == MOI.ScalarAffineFunction{T}
+            @test MOI.get(model, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{T}}()) ≈ fa + one(T)
+        end
+    end
+end
+
 @testset "SDPA format with $T" for T in [Float64, Int]
     model = SDPAModel{T}()
     bridged = MOIB.LazyBridgeOptimizer(model)
@@ -58,6 +117,8 @@ end
         @testset "Free" begin
             @test !MOI.supports_constraint(model, MOI.VectorOfVariables, MOI.Reals)
             @test !MOI.supports_constraint(bridged, MOI.VectorOfVariables, MOI.Reals)
+            @test_throws MOI.UnsupportedConstraint{MOI.VectorOfVariables, MOI.Reals} MOI.add_variable(bridged)
+            @test_throws MOI.UnsupportedConstraint{MOI.VectorOfVariables, MOI.Reals} MOI.add_variables(bridged, 2)
             MOIB.add_bridge(bridged, MOIB.Variable.FreeBridge{T})
             @test MOI.supports_constraint(bridged, MOI.VectorOfVariables, MOI.Reals)
             @test MOIB.bridge_type(bridged, MOI.Reals) == MOIB.Variable.FreeBridge{T}
@@ -130,6 +191,19 @@ end
             @test MOIB.bridge_type(bridged, MOI.ScalarQuadraticFunction{T},
                                    MOI.LessThan{T}) == MOIB.Constraint.QuadtoSOCBridge{T}
         end
+    end
+    @testset "Objective" begin
+        F = MOI.ScalarQuadraticFunction{T}
+        @test !MOI.supports(bridged, MOI.ObjectiveFunction{MOI.SingleVariable}())
+        @test !MOI.supports(bridged, MOI.ObjectiveFunction{F}())
+        MOIB.add_bridge(bridged, MOIB.Objective.SlackBridge{T})
+        @test !MOI.supports(bridged, MOI.ObjectiveFunction{MOI.SingleVariable}())
+        @test !MOI.supports(bridged, MOI.ObjectiveFunction{F}())
+        MOIB.add_bridge(bridged, MOIB.Objective.FunctionizeBridge{T})
+        @test MOI.supports(bridged, MOI.ObjectiveFunction{MOI.SingleVariable}())
+        @test MOIB.bridge_type(bridged, MOI.SingleVariable) == MOIB.Objective.FunctionizeBridge{T}
+        @test MOI.supports(bridged, MOI.ObjectiveFunction{F}())
+        @test MOIB.bridge_type(bridged, F) == MOIB.Objective.SlackBridge{T, F, F}
     end
 end
 
