@@ -1648,6 +1648,7 @@ function number_of_affine_terms(
     return length(f.affine_terms)
 end
 
+number_of_quadratic_terms(::Type{T}, ::Union{T, SVF, VVF, SAF{T}, VAF{T}}) where {T} = 0
 function number_of_quadratic_terms(
     ::Type{T}, f::Union{SQF{T}, VQF{T}}) where T
     return length(f.quadratic_terms)
@@ -1666,8 +1667,7 @@ function offset_term(t::MOI.VectorQuadraticTerm, offset::Int)
     return MOI.VectorQuadraticTerm(offset + t.output_index, t.scalar_term)
 end
 
-function fill_terms(terms::Vector{MOI.VectorAffineTerm{T}}, offset::Int,
-                    output_offset::Int, func::T) where T
+function fill_terms(::Vector{MOI.VectorAffineTerm{T}}, ::Int, ::Int, ::T) where T
 end
 function fill_terms(terms::Vector{MOI.VectorAffineTerm{T}}, offset::Int,
                     output_offset::Int, func::SVF) where T
@@ -1689,6 +1689,10 @@ function fill_terms(terms::Vector{MOI.VectorAffineTerm{T}}, offset::Int,
                     output_offset::Int, func::Union{SQF{T}, VQF{T}}) where T
     n = number_of_affine_terms(T, func)
     terms[offset .+ (1:n)] .= offset_term.(func.affine_terms, output_offset)
+end
+
+function fill_terms(::Vector{MOI.VectorQuadraticTerm{T}}, ::Int, ::Int,
+                    ::Union{T, SVF, VVF, SAF{T}, VAF{T}}) where T
 end
 function fill_terms(terms::Vector{MOI.VectorQuadraticTerm{T}}, offset::Int,
                     output_offset::Int, func::Union{SQF{T}, VQF{T}}) where T
@@ -1850,9 +1854,11 @@ function count_terms(dimension::I, terms::Vector{T}) where {I,T}
     return counting
 end
 
+tol_default(T::Type{<:Union{Integer, Rational}}) = zero(T)
+tol_default(T::Type{<:AbstractFloat}) = sqrt(eps(T))
 convert_approx(::Type{T}, func::T; kws...) where {T} = func
 function convert_approx(::Type{MOI.SingleVariable}, func::MOI.ScalarAffineFunction{T};
-                        tol=sqrt(eps(T))) where {T}
+                        tol=tol_default(T)) where {T}
     f = canonical(func)
     i = findfirst(t -> isapprox(t.coefficient, one(T), atol=tol), f.terms)
     if abs(f.constant) > tol || i === nothing ||
@@ -1862,7 +1868,7 @@ function convert_approx(::Type{MOI.SingleVariable}, func::MOI.ScalarAffineFuncti
     return MOI.SingleVariable(f.terms[i].variable_index)
 end
 function convert_approx(::Type{MOI.VectorOfVariables}, func::MOI.VectorAffineFunction{T};
-    tol=sqrt(eps(T))) where {T}
+                        tol=tol_default(T)) where {T}
     return MOI.VectorOfVariables([convert_approx(MOI.SingleVariable, f, tol=tol).variable
                                   for f in scalarize(func)])
 end
