@@ -119,6 +119,27 @@ SubmitNotAllowed(sub::AbstractSubmittable) = SubmitNotAllowed(sub, "")
 operation_name(err::SubmitNotAllowed) = "Submitting $(err.sub)"
 message(err::SubmitNotAllowed) = err.message
 
+struct ResultIndexBoundsError{AttrType} <: Exception
+    attr::AttrType
+    result_count::Int
+end
+# TODO: rename the .N -> .result_index field in necessary attributes (e.g.,
+# VariablePrimal, ConstraintPrimal, ConstraintDual), and remove this helper
+# function.
+_result_index_field(attr) = attr.result_index
+function check_result_index_bounds(model::ModelLike, attr)
+    result_count = get(model, ResultCount())
+    if !(1 <= _result_index_field(attr) <= result_count)
+        throw(ResultIndexBoundsError(attr, result_count))
+    end
+end
+function Base.showerror(io::IO, err::ResultIndexBoundsError)
+    print(io,
+        "Result index of attribute $(err.attr) out of bounds. There are " *
+        "currently $(err.result_count) solution(s) in the model.")
+end
+
+
 """
     supports(model::ModelLike, sub::AbstractSubmittable)::Bool
 
@@ -492,6 +513,27 @@ struct UserCut{CallbackDataType} <: AbstractSubmittable
     callback_data::CallbackDataType
 end
 
+"""
+    struct InvalidCallbackUsage{C, S} <: Exception
+        callback::C
+        submittable::S
+    end
+
+An error indicating that `submittable` cannot be submitted inside `callback`.
+
+For example, [`UserCut`](@ref) cannot be submitted inside
+[`LazyConstraintCallback`](@ref).
+"""
+struct InvalidCallbackUsage{C, S} <: Exception
+    callback::C
+    submittable::S
+end
+
+function Base.showerror(io::IO, err::InvalidCallbackUsage)
+    print(io, "InvalidCallbackUsage: Cannot submit $(err.submittable) inside a $(err.callback).")
+end
+
+
 ## Optimizer attributes
 
 """
@@ -547,6 +589,15 @@ which is typically an `Enum` or a `String`.
 struct RawParameter <: AbstractOptimizerAttribute
     name::Any
 end
+
+"""
+    NumberOfThreads()
+
+An optimizer attribute for setting the number of threads used for an
+optimization. When set to `nothing` uses solver default. Values are positive
+integers. The default value is `nothing`.
+"""
+struct NumberOfThreads <: AbstractOptimizerAttribute end
 
 ### Callbacks
 
@@ -898,6 +949,7 @@ struct VariablePrimal <: AbstractVariableAttribute
     N::Int
 end
 VariablePrimal() = VariablePrimal(1)
+_result_index_field(attr::VariablePrimal) = attr.N
 
 """
     CallbackVariablePrimal(callback_data)
@@ -988,6 +1040,7 @@ struct ConstraintPrimal <: AbstractConstraintAttribute
     N::Int
 end
 ConstraintPrimal() = ConstraintPrimal(1)
+_result_index_field(attr::ConstraintPrimal) = attr.N
 
 """
     ConstraintDual(N)
@@ -1000,17 +1053,23 @@ struct ConstraintDual <: AbstractConstraintAttribute
     N::Int
 end
 ConstraintDual() = ConstraintDual(1)
+_result_index_field(attr::ConstraintDual) = attr.N
 
 """
+    ConstraintBasisStatus(result_index)
     ConstraintBasisStatus()
 
-A constraint attribute for the `BasisStatusCode` of some constraint, with
-respect to an available optimal solution basis.
+A constraint attribute for the `BasisStatusCode` of some constraint in result
+`result_index`, with respect to an available optimal solution basis. If
+`result_index` is omitted, it is 1 by default.
 
 **For the basis status of a variable, query the corresponding `SingleVariable`
 constraint that enforces the variable's bounds.**
 """
-struct ConstraintBasisStatus <: AbstractConstraintAttribute end
+struct ConstraintBasisStatus <: AbstractConstraintAttribute
+    result_index::Int
+end
+ConstraintBasisStatus() = ConstraintBasisStatus(1)
 
 """
     ConstraintFunction()
@@ -1218,6 +1277,7 @@ struct PrimalStatus <: AbstractModelAttribute
     N::Int
 end
 PrimalStatus() = PrimalStatus(1)
+_result_index_field(attr::PrimalStatus) = attr.N
 
 """
     DualStatus(N)
@@ -1230,6 +1290,7 @@ struct DualStatus <: AbstractModelAttribute
     N::Int
 end
 DualStatus() = DualStatus(1)
+_result_index_field(attr::DualStatus) = attr.N
 
 """
     is_set_by_optimize(::AnyAttribute)

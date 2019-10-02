@@ -13,10 +13,11 @@ end
 @testset "Unit Tests" begin
     # `UniversalFallback` needed for `MOI.Silent`
     mock = MOIU.MockOptimizer(MOIU.UniversalFallback(MOIU.Model{Float64}()))
+    # Optimizers attributes have to be set to default value since the mock
+    # optimizer doesn't handle this
     MOI.set(mock, MOI.Silent(), true)
-    # TimeLimitSec() has to be set to default value since the mock optimizer
-    # doesn't handle this
     MOI.set(mock, MOI.TimeLimitSec(), nothing)
+    MOI.set(mock, MOI.NumberOfThreads(), nothing)
     config = MOIT.TestConfig()
     for model in [mock,
                   MOIU.CachingOptimizer(MOIU.UniversalFallback(
@@ -47,6 +48,7 @@ end
             "solve_unbounded_model",
             "solve_single_variable_dual_min",
             "solve_single_variable_dual_max",
+            "solve_result_index",
             ])
         MOI.empty!(model)
     end
@@ -376,6 +378,19 @@ end
         )
         MOIT.solve_single_variable_dual_max(mock, config)
         mock.eval_variable_constraint_dual = flag
+    end
+
+    @testset "solve_result_index" begin
+        MOIU.set_mock_optimize!(mock,
+            (mock::MOIU.MockOptimizer) -> MOIU.mock_optimize!(
+                mock,
+                MOI.OPTIMAL,
+                (MOI.FEASIBLE_POINT, [1.0]),
+                MOI.FEASIBLE_POINT,
+                (MOI.SingleVariable, MOI.GreaterThan{Float64}) => [1.0],
+            )
+        )
+        MOIT.solve_result_index(mock, config)
     end
 end
 

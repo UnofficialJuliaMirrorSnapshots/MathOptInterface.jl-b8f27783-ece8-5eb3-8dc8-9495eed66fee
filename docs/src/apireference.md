@@ -130,6 +130,7 @@ SolverName
 Silent
 TimeLimitSec
 RawParameter
+NumberOfThreads
 AbstractCallback
 LazyConstraintCallback
 HeuristicCallback
@@ -456,6 +457,13 @@ As discussed in [`AbstractCallback`](@ref), trying to [`get`](@ref) attributes
 inside a callback may throw:
 ```@docs
 OptimizeInProgress
+```
+
+Trying to submit the wrong type of [`AbstractSubmittable`](@ref) inside an
+[`AbstractCallback`](@ref) (e.g., a [`UserCut`](@ref) inside a
+[`LazyConstraintCallback`](@ref)) will throw:
+```@docs
+InvalidCallbackUsage
 ```
 
 The rest of the errors defined in MOI fall in two categories represented by the
@@ -974,6 +982,12 @@ set for scalar constraints:
 Utilities.shift_constant
 Utilities.normalize_and_add_constraint
 Utilities.normalize_constant
+```
+
+The following utility identifies those constraints imposing bounds on a given
+variable, and returns those bound values:
+```@docs
+Utilities.get_bounds
 ```
 
 ## Benchmarks
