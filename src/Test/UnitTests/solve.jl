@@ -139,29 +139,33 @@ end
 unittests["solve_single_variable_dual_max"] = solve_single_variable_dual_max
 
 function solve_result_index(model::MOI.ModelLike, config::TestConfig)
+    atol = config.atol
+    rtol = config.rtol
     MOI.empty!(model)
     x = MOI.add_variable(model)
     c = MOI.add_constraint(model, MOI.SingleVariable(x), MOI.GreaterThan(1.0))
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(model, MOI.ObjectiveFunction{MOI.SingleVariable}(), MOI.SingleVariable(x))
-    result_err(attr) = MOI.ResultIndexBoundsError{typeof(attr)}(attr, 1)
     if config.solve
         MOI.optimize!(model)
-        @test MOI.get(model, MOI.ObjectiveValue(1)) == 1.0
-        @test_throws result_err(MOI.ObjectiveValue(2)) MOI.get(model, MOI.ObjectiveValue(2))
+        result_count = MOI.get(model, MOI.ResultCount())
+        result_err(attr) = MOI.ResultIndexBoundsError{typeof(attr)}(attr, result_count)
+        result_index = result_count + 1
+        @test MOI.get(model, MOI.ObjectiveValue(1)) ≈ 1.0 atol=atol rtol=rtol
+        @test_throws result_err(MOI.ObjectiveValue(result_index)) MOI.get(model, MOI.ObjectiveValue(result_index))
         @test MOI.get(model, MOI.PrimalStatus(1)) == MOI.FEASIBLE_POINT
-        @test_throws result_err(MOI.PrimalStatus(2)) MOI.get(model, MOI.PrimalStatus(2))
-        @test MOI.get(model, MOI.VariablePrimal(1), x) == 1.0
-        @test_throws result_err(MOI.VariablePrimal(2)) MOI.get(model, MOI.VariablePrimal(2), x)
-        @test MOI.get(model, MOI.ConstraintPrimal(1), c) == 1.0
-        @test_throws result_err(MOI.ConstraintPrimal(2)) MOI.get(model, MOI.ConstraintPrimal(2), c)
+        @test MOI.get(model, MOI.PrimalStatus(result_index)) == MOI.NO_SOLUTION
+        @test MOI.get(model, MOI.VariablePrimal(1), x) ≈ 1.0 atol=atol rtol=rtol
+        @test_throws result_err(MOI.VariablePrimal(result_index)) MOI.get(model, MOI.VariablePrimal(result_index), x)
+        @test MOI.get(model, MOI.ConstraintPrimal(1), c) ≈ 1.0 atol=atol rtol=rtol
+        @test_throws result_err(MOI.ConstraintPrimal(result_index)) MOI.get(model, MOI.ConstraintPrimal(result_index), c)
         if config.duals
             @test MOI.get(model, MOI.DualStatus(1)) == MOI.FEASIBLE_POINT
-            @test_throws result_err(MOI.DualStatus(2)) MOI.get(model, MOI.DualStatus(2))
-            @test MOI.get(model, MOI.ConstraintDual(1), c) == 1.0
-            @test_throws result_err(MOI.ConstraintDual(2)) MOI.get(model, MOI.ConstraintDual(2), c)
-            @test MOI.get(model, MOI.DualObjectiveValue(1)) == 1.0
-            @test_throws result_err(MOI.DualObjectiveValue(2)) MOI.get(model, MOI.DualObjectiveValue(2))
+            @test MOI.get(model, MOI.DualStatus(result_index)) == MOI.NO_SOLUTION
+            @test MOI.get(model, MOI.ConstraintDual(1), c) ≈ 1.0 atol=atol rtol=rtol
+            @test_throws result_err(MOI.ConstraintDual(result_index)) MOI.get(model, MOI.ConstraintDual(result_index), c)
+            @test MOI.get(model, MOI.DualObjectiveValue(1)) ≈ 1.0 atol=atol rtol=rtol
+            @test_throws result_err(MOI.DualObjectiveValue(result_index)) MOI.get(model, MOI.DualObjectiveValue(result_index))
         end
     end
 end
